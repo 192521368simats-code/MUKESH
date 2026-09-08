@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gauss–Jordan Structural Load Analysis</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root{--bg:#f4f7fb;--card:#fff;--text:#182230;--muted:#64748b;--primary:#2563eb;--accent:#0f766e;--border:#dbe3ee;--shadow:0 12px 30px #17255412}
+*{box-sizing:border-box} body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text)}
+header{background:linear-gradient(135deg,#172554,#1d4ed8);color:white;padding:34px 6%;position:sticky;top:0;z-index:5;box-shadow:0 5px 18px #0002}
+header .top{display:flex;justify-content:space-between;align-items:center;gap:20px} h1{margin:0;font-size:clamp(25px,4vw,42px)} header p{margin:8px 0 0;color:#dbeafe}
+button{border:0;border-radius:10px;padding:11px 16px;font-weight:700;cursor:pointer;background:var(--primary);color:#fff}
+button.secondary{background:transparent;border:1px solid #ffffff66} nav{margin-top:22px;display:flex;gap:8px;flex-wrap:wrap}nav a{color:white;text-decoration:none;padding:8px 12px;border-radius:8px;background:#ffffff16}
+main{max-width:1250px;margin:auto;padding:28px 5%}.hero,.card{background:var(--card);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow)}
+.hero{padding:30px;margin-bottom:22px}.hero h2{margin-top:0}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.card{padding:22px;margin-bottom:20px}.stat{font-size:28px;font-weight:800;color:var(--primary)}.muted{color:var(--muted)}
+.section-title{display:flex;justify-content:space-between;align-items:center;gap:10px}.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.matrix-wrap{overflow:auto}.matrix{display:grid;gap:6px;margin:12px 0}.cell{width:70px;padding:10px;border:1px solid var(--border);border-radius:7px;text-align:center;background:var(--bg)}
+input{width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text)}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.control{min-width:120px}.control label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+table{width:100%;border-collapse:collapse}th,td{padding:11px;border-bottom:1px solid var(--border);text-align:left}th{background:var(--bg)}
+.result{font-family:ui-monospace,Consolas,monospace;white-space:pre-wrap;background:#0b1220;color:#dbeafe;padding:16px;border-radius:12px;overflow:auto;min-height:100px}
+.badge{display:inline-block;padding:5px 9px;border-radius:999px;background:#dbeafe;color:#1e40af;font-size:12px;font-weight:700}.ok{background:#dcfce7;color:#166534}.warn{background:#fef3c7;color:#92400e}
+footer{text-align:center;padding:35px;color:var(--muted)}
+.dark{--bg:#0b1120;--card:#111827;--text:#e5e7eb;--muted:#94a3b8;--border:#273449;--shadow:0 12px 30px #0005}
+@media(max-width:850px){.grid,.two{grid-template-columns:1fr}.cell{width:58px}}
+</style>
+</head>
+<body>
+<header>
+<div class="top"><div><h1>Gauss–Jordan Structural Analysis</h1><p>Interactive matrix inversion and structural response dashboard</p></div><button class="secondary" onclick="toggleMode()">☾ Change Mode</button></div>
+<nav><a href="#overview">Overview</a><a href="#matrix">Matrix Solver</a><a href="#response">Response</a><a href="#chart">Graphs</a><a href="#workflow">Workflow</a></nav>
+</header>
+
+<main>
+<section id="overview" class="hero">
+<h2>Numerical Method for Structural Load Analysis</h2>
+<p>This web application follows the project workflow: form a structural matrix <b>A</b>, create the augmented matrix <b>[A | I]</b>, apply Gauss–Jordan elimination, obtain <b>A⁻¹</b>, and calculate the structural response using <b>X = A⁻¹F</b>.</p>
+<div class="grid">
+<div class="card"><div class="stat">A → A⁻¹</div><div class="muted">Matrix inversion</div></div>
+<div class="card"><div class="stat">X = A⁻¹F</div><div class="muted">Structural response</div></div>
+<div class="card"><div class="stat">A·X = F</div><div class="muted">Verification</div></div>
+</div>
+</section>
+
+<section id="matrix" class="card">
+<div class="section-title"><div><h2>Module 1 & 2 — Matrix Formation & Gauss–Jordan Inversion</h2><p class="muted">Enter a square structural matrix and load vector.</p></div><span id="status" class="badge">Ready</span></div>
+<div class="controls">
+<div class="control"><label>Matrix size</label><select id="size" onchange="buildInputs()"><option>2</option><option selected>3</option><option>4</option><option>5</option></select></div>
+<button onclick="loadExample()">Load structural example</button><button onclick="solve()">Run Gauss–Jordan</button>
+</div>
+<div id="matrixInputs" class="matrix-wrap"></div>
+</section>
+
+<section class="two">
+<div class="card"><h3>Augmented Matrix [A | I]</h3><div id="augmented" class="result">Run the solver to view elimination input.</div></div>
+<div class="card"><h3>Inverse Matrix A⁻¹</h3><div id="inverse" class="result">Run the solver to calculate the inverse.</div></div>
+</section>
+
+<section id="response" class="card">
+<div class="section-title"><div><h2>Module 3 — Structural Response Analysis</h2><p class="muted">Response vector is calculated from X = A⁻¹ × F.</p></div><span id="verify" class="badge">Not verified</span></div>
+<div id="loads" class="matrix-wrap"></div>
+<button onclick="calculateResponse()">Calculate Response</button>
+<div id="responseOut" class="result" style="margin-top:15px">Enter loads and calculate the response.</div>
+</section>
+
+<section id="chart" class="card">
+<h2>Response Visualization</h2><p class="muted">Compare applied load and calculated node response.</p>
+<canvas id="responseChart" height="110"></canvas>
+</section>
+
+<section id="workflow" class="card">
+<h2>Application Workflow</h2>
+<table><tr><th>Module</th><th>Operation</th><th>Purpose</th></tr>
+<tr><td>1</td><td>Structural Matrix Formation</td><td>Enter square matrix A and load vector F.</td></tr>
+<tr><td>2</td><td>Gauss–Jordan Matrix Inversion</td><td>Transform [A | I] into [I | A⁻¹] using pivoting and row operations.</td></tr>
+<tr><td>3</td><td>Structural Response Analysis</td><td>Calculate X = A⁻¹F and verify A·X = F.</td></tr>
+</table>
+</section>
+
+<section class="card">
+<h2>Project Benefits & Future Scope</h2>
+<div class="two"><div><ul><li>Reduces manual matrix-calculation errors.</li><li>Quickly calculates structural responses.</li><li>Provides numerical verification and graphs.</li><li>Useful for small- to medium-sized dense systems.</li></ul></div>
+<div><ul><li>Can be extended toward bridge and building models.</li><li>Can integrate with FEM-based analysis.</li><li>Can use optimized/parallel algorithms for larger systems.</li></ul></div></div>
+</section>
+</main>
+<footer>Gauss–Jordan for Matrix Inversion in Structural Load Analysis · Interactive academic prototype</footer>
+
+<script>
+let lastA=null,lastInv=null,lastF=null,chart=null;
+function toggleMode(){document.body.classList.toggle('dark');}
+function buildInputs(){
+ const n=+document.getElementById('size').value, box=document.getElementById('matrixInputs');
+ box.innerHTML='<h3>Structural Matrix A</h3><div class="matrix" style="grid-template-columns:repeat('+n+',70px)">'+
+ Array.from({length:n*n},(_,i)=>'<input class="cell a" id="a'+i+'" value="'+(i%(n+1)===0?(i/n|0)+2:0)+'">').join('')+'</div>';
+ document.getElementById('loads').innerHTML='<h3>Load Vector F</h3><div class="matrix" style="grid-template-columns:repeat('+n+',100px)">'+
+ Array.from({length:n},(_,i)=>'<input class="cell f" id="f'+i+'" value="'+(i+1)*10+'">').join('')+'</div>';
+}
+function loadExample(){
+ const n=+size.value, ex=n===3?[[6,2,1],[2,5,1],[1,1,4]]:Array.from({length:n},(_,i)=>Array.from({length:n},(_,j)=>i===j?4:1));
+ ex.flat().forEach((v,i)=>document.getElementById('a'+i).value=v);
+ document.querySelectorAll('.f').forEach((e,i)=>e.value=(i+1)*20);
+ document.getElementById('status').textContent='Example loaded';
+}
+function fmt(M){return M.map(r=>r.map(v=>Number(v).toFixed(4)).join('\t')).join('\n')}
+function gaussJordan(A){
+ const n=A.length, m=A[0].length, M=A.map((r,i)=>r.concat(Array.from({length:n},(_,j)=>i===j?1:0)));
+ for(let col=0;col<n;col++){
+  let p=col; for(let r=col+1;r<n;r++) if(Math.abs(M[r][col])>Math.abs(M[p][col])) p=r;
+  if(Math.abs(M[p][col])<1e-12) throw Error('Matrix is singular or nearly singular.');
+  [M[p],M[col]]=[M[col],M[p]];
+  const pivot=M[col][col]; for(let j=0;j<2*n;j++) M[col][j]/=pivot;
+  for(let r=0;r<n;r++) if(r!==col){const q=M[r][col];for(let j=0;j<2*n;j++)M[r][j]-=q*M[col][j];}
+ }
+ return M.map(r=>r.slice(n));
+}
+function matVec(A,x){return A.map(r=>r.reduce((s,v,i)=>s+v*x[i],0))}
+function solve(){
+ try{
+  const n=+size.value,A=Array.from({length:n},(_,i)=>Array.from({length:n},(_,j)=>+document.getElementById('a'+(i*n+j)).value));
+  const F=Array.from(document.querySelectorAll('.f')).map(e=>+e.value);
+  const inv=gaussJordan(A);lastA=A;lastInv=inv;lastF=F;
+  const aug=A.map((r,i)=>r.concat(Array.from({length:n},(_,j)=>i===j?1:0)));
+  augmented.textContent=fmt(aug);inverse.textContent=fmt(inv);
+  status.textContent='Inversion complete';status.className='badge ok';calculateResponse();
+ }catch(e){status.textContent=e.message;status.className='badge warn';}
+}
+function calculateResponse(){
+ if(!lastInv)return;
+ const x=matVec(lastInv,lastF), check=matVec(lastA,x), err=Math.max(...check.map((v,i)=>Math.abs(v-lastF[i])));
+ responseOut.textContent='Node response X:\\n'+x.map((v,i)=>'Node '+(i+1)+': '+v.toFixed(6)).join('\\n')+'\\n\\nVerification A × X:\\n'+check.map(v=>v.toFixed(6)).join('\\n')+'\\n\\nMaximum verification error: '+err.toExponential(3);
+ verify.textContent=err<1e-7?'Verified: A×X ≈ F':'Check required';verify.className='badge '+(err<1e-7?'ok':'warn');drawChart(x);
+}
+function drawChart(x){
+ if(chart)chart.destroy();
+ chart=new Chart(document.getElementById('responseChart'),{type:'bar',data:{labels:x.map((_,i)=>'Node '+(i+1)),datasets:[{label:'Applied Load',data:lastF},{label:'Response X',data:x}]},options:{responsive:true,scales:{y:{beginAtZero:true}}}});
+}
+buildInputs();
+</script>
+</body>
+</html>
